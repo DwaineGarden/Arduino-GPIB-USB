@@ -6,6 +6,7 @@ Permissions beyond the scope of this license may be available at emanuele_girlan
 // #define DEBUG_BUILD
 // #define DEEP_DEBUG_BUILD 
 
+/* Fix compiler warnings - Jan 4, 2016 - Dwaine P. Garden
 
 /*
  Implements some of the CONTROLLER functions; CIC only;
@@ -88,7 +89,7 @@ char com[BUFFSIZE] = "",          // USB input string buffer
 #define CR   0xD
 #define NL   0xA
 #define PLUS 0x2B
-char *EOSs = "\r\n";      // string containing a list of all possible GPIB terminator chars.
+char EOSs[] = "\r\n";      // string containing a list of all possible GPIB terminator chars.
 boolean itwascmd=false;   // flag to know if the last USB input line was a "++" command or not.
 
 /*
@@ -181,7 +182,7 @@ void loop() {
 
   if (*com && automode && !itwascmd)  gpibReceive();  else if (verbose) Serial.println();
   
-  *com = NULL; itwascmd=false;
+  *com = 0; itwascmd=false;
 } // end loop
 
 void getUSBline() {
@@ -193,7 +194,7 @@ void getUSBline() {
     if (Serial.available()>0) { 
       if (Serial.available() >=63) { // chars coming in too fast....
        if (verbose) Serial.println(F("Serial buffer overflow - line discarded. Try setting non buffered I/O in your USB data source")); 
-       *com = NULL; comp = com;
+       *com = 0; comp = com;
        return;
       }
       
@@ -229,7 +230,7 @@ void getUSBline() {
          // if (isesc) goto loadchar;  
           if (isesc) { Serial.println("CR or LF inserted");goto loadchar; }
           
-          *comp = NULL; // replace USBeos with null
+          *comp = 0; // replace USBeos with null
           if (gotplus == 2) {  // got a "++" at the beginnig: its a command!
             cmdparse();        // parse it
             itwascmd=true;
@@ -244,7 +245,7 @@ void getUSBline() {
           else {     // buffer overflow; entire line discarded
             Serial.print(F("USB buffer overflow: limit input size to ")); Serial.print(BUFFSIZE-1); Serial.println(" chars."); 
             //flush_serial(); 
-            *com = NULL; comp = com; isesc=false;
+            *com = 0; comp = com; isesc=false;
             return;
           }
           isesc=false;
@@ -258,7 +259,7 @@ Serial.print(F("ASSERT error: statement should be never reached in getUSBline()"
     command parser
  */
 struct cmd_info { 
-  char* opcode; 
+  const char* opcode; 
   void (*handler)(void); 
 };
 
@@ -295,7 +296,7 @@ char *param; // pointer to comman parameter(s)
   Serial.print(com); Serial.print(" - lengh:");Serial.println(strlen(com));
 #endif
 
-  if (*com == (NULL || CR || NL) ) return; // empty line: nothing to parse.
+  if (*com == (0 || CR || NL) ) return; // empty line: nothing to parse.
   
   param=strtok(com, " \t"); // additional calls to strtok possible in handlers routines
   for (cmdp = cmds; cmdp != cmde; cmdp++ ) {
@@ -313,7 +314,7 @@ char *param; // pointer to comman parameter(s)
     Serial.print(param); Serial.println(F(": unreconized command.")); 
   }
 
-*com=NULL; comp=com; //Done.
+*com=0; comp=com; //Done.
 
 }
 
@@ -328,7 +329,7 @@ void addr_h() {
   if ( (param=strtok(NULL, " \t")) ) {  
     // Serial.print("param: "); Serial.println(param);
     temp = strtol(param, &pend, 10);
-    if (*pend != NULL) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
     if (temp<1 || temp > 30) { 
         if (verbose) Serial.println(F("address out of range: valid address range is [1-30]."));return;} 
     addr=temp; if (!verbose) return;
@@ -343,7 +344,7 @@ void tmo_h() {
   if ( (param=strtok(NULL, " \t")) ) {  
     // Serial.print("param: "); Serial.println(param);
     temp = strtol(param, &pend, 10);
-    if (*pend != NULL) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
     if (temp<100 || temp > 9999) { 
         if (verbose) Serial.println(F("read_tmo_ms out of range: valid address range is [100-9999]."));return;}
     htimeout=temp; if (!verbose) return;
@@ -357,7 +358,7 @@ void eos_h() {
   if ( (param=strtok(NULL, " \t")) ) {  
     // Serial.print("param: "); Serial.println(param);
     temp = strtol(param, &pend, 10);
-    if (*pend != NULL) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
     if (temp<0|| temp > 3) { 
         if (verbose) Serial.println(F("eos out of range: valid address range is [0-3]."));return;}
     eos=temp; if (!verbose) return;
@@ -370,7 +371,7 @@ void eoi_h() {
 
   if ( (param=strtok(NULL, " \t")) ) {  
     temp = strtol(param, &pend, 10);
-    if (*pend != NULL) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
     if (temp<0|| temp > 1) { 
         if (verbose) Serial.println(F("eoi: valid address range is [0|1]."));return;}
     eoi = temp ? true : false;  if (!verbose) return;
@@ -383,7 +384,7 @@ void mode_h() {
 
   if ( (param=strtok(NULL, " \t")) ) {  
     temp = strtol(param, &pend, 10);
-    if (*pend != NULL) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
     if (temp<0|| temp > 1) { 
         if (verbose) Serial.println(F("mode: valid address range is [0|1]."));return;}
     // cmode = temp ? CONTROLLER : DEVICE;  if (!verbose) return;
@@ -397,7 +398,7 @@ void eot_enable_h() {
 
   if ( (param=strtok(NULL, " \t")) ) {  
     temp = strtol(param, &pend, 10);
-    if (*pend != NULL) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
     if (temp<0|| temp > 1) { 
         if (verbose) Serial.println(F("eoi: valid address range is [0|1]."));return;}
     eot_enable = temp ? true : false;  if (!verbose) return;
@@ -410,7 +411,7 @@ void eot_char_h() {
 
   if ( (param=strtok(NULL, " \t")) ) {  
     temp = strtol(param, &pend, 10);
-    if (*pend != NULL) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
     if (temp<0|| temp > 256) { 
         if (verbose) Serial.println(F("eot_char: valid address range is [0-256]."));return;}
     eot_char = temp;  if (!verbose) return;
@@ -424,7 +425,7 @@ int temp;
 
   if ( (param=strtok(NULL, " \t")) ) {  
     temp = strtol(param, &pend, 10);
-    if (*pend != NULL) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
     if (temp<0|| temp > 1) { 
         if (verbose) Serial.println(F("automode: valid address range is [0|1]."));return;}
     automode = temp ? true : false;  if (!verbose) return;
@@ -845,7 +846,7 @@ int i;
     case 2:                      // appends CR or LF depending on eos value
       i=strlen(outbuf);
       outbuf[i]=EOSs[eos-1]; 
-      outbuf[i+1]=NULL;
+      outbuf[i+1]=0;
       break;
       
     case 3:                      // do not append anything
