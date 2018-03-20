@@ -58,7 +58,7 @@ GPIB BUS commands
 #define LLO 0x11
 #define UNL 0x3F
 #define UNT 0x5F
-//#define SPE 0x18
+// #define SPE 0x18
 #define SPD 0x19
 #define PPU 0x15
 
@@ -160,7 +160,6 @@ void flush_serial(void) {
      }
 }
   
-
 ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////
 /////////// MAIN LOOP
@@ -195,7 +194,7 @@ void getUSBline() {
 
     if (Serial.available()>0) { 
       if (Serial.available() >=63) { // chars coming in too fast....
-       if (verbose) Serial.println(F("Serial buffer overflow - line discarded. Try setting non buffered I/O in your USB data source")); 
+       if (verbose) Serial.println(F("Serial buffer overflow - line discarded. Try setting up a non buffered I/O in your USB data source")); 
        *com = 0; comp = com;
        return;
       }
@@ -257,7 +256,7 @@ srqflag = 0;
         loadchar:       // collect c in com, ensuring com does not overflow */
           if ( comp < come ) { *comp++ = c; } 
           else {     // buffer overflow; entire line discarded
-            Serial.print(F("USB buffer overflow: Please limit input size to ")); Serial.print(BUFFSIZE-1); Serial.println(" chars."); 
+            Serial.print(F("USB buffer overflow: Please limit the input size to=> ")); Serial.print(BUFFSIZE-1); Serial.println(" chars."); 
             //flush_serial(); 
             *com = 0; comp = com; isesc=false;
             return;
@@ -390,7 +389,7 @@ return;
 }
 if (temp < 0 || temp > 1)
 {
-if (verbose) Serial.println(F("srqmode: The valid range is [0|1]."));
+if (verbose) Serial.println(F("srqmode: A valid range is [0|1]."));
 return;
 }
 srqmode = temp ? true : false;
@@ -416,7 +415,7 @@ void tmo_h() {
     temp = strtol(param, &pend, 10);
     if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<100 || temp > 9999) { 
-        if (verbose) Serial.println(F("read_tmo_ms out of range: The valid address range is [100-9999]."));return;}
+        if (verbose) Serial.println(F("read_tmo_ms out of range: A valid address range is [100-9999]."));return;}
     htimeout=temp; if (!verbose) return;
   }
   Serial.println(htimeout); 
@@ -430,7 +429,7 @@ void eos_h() {
     temp = strtol(param, &pend, 10);
     if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<0|| temp > 3) { 
-        if (verbose) Serial.println(F("eos out of range: The valid address range is [0-3]."));return;}
+        if (verbose) Serial.println(F("eos out of range: A valid address range is [0-3]."));return;}
     eos=temp; if (!verbose) return;
   }
   Serial.println(eos); 
@@ -443,7 +442,7 @@ void eoi_h() {
     temp = strtol(param, &pend, 10);
     if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<0|| temp > 1) { 
-        if (verbose) Serial.println(F("eoi: The valid address range is [0|1]."));return;}
+        if (verbose) Serial.println(F("eoi: A valid address range is [0|1]."));return;}
     eoi = temp ? true : false;  if (!verbose) return;
   }
   Serial.println(eoi); 
@@ -456,7 +455,7 @@ void mode_h() {
     temp = strtol(param, &pend, 10);
     if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<0|| temp > 1) { 
-        if (verbose) Serial.println(F("mode: The valid address range is [0|1]."));return;}
+        if (verbose) Serial.println(F("mode: A valid address range is [0|1]."));return;}
     // cmode = temp ? CONTROLLER : DEVICE;  if (!verbose) return;
        cmode=CONTROLLER;  // only controller mode implemented here... 
   }
@@ -470,7 +469,7 @@ void eot_enable_h() {
     temp = strtol(param, &pend, 10);
     if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<0|| temp > 1) { 
-        if (verbose) Serial.println(F("eoi: The valid address range is [0|1]."));return;}
+        if (verbose) Serial.println(F("eoi: A valid address range is [0|1]."));return;}
     eot_enable = temp ? true : false;  if (!verbose) return;
   }
   Serial.println(eot_enable); 
@@ -483,7 +482,7 @@ void eot_char_h() {
     temp = strtol(param, &pend, 10);
     if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<0|| temp > 256) { 
-        if (verbose) Serial.println(F("eot_char: The valid address range is [0-256]."));return;}
+        if (verbose) Serial.println(F("eot_char: A valid address range is [0-256]."));return;}
     eot_char = temp;  if (!verbose) return;
   }
   Serial.println((byte)eot_char); 
@@ -512,9 +511,9 @@ int temp;
     temp = strtol(param, &pend, 10);
     
     if (!temp) { 
-      if (verbose) Serial.println(F("Syntax error: ++ver command does not accept any parameters.")); return;}
+      if (verbose) Serial.println(F("Syntax error: ++ver command has not accepted any parameters!")); return;}
     }
-    Serial.println(F("ARDUINO GPIB firmware by E. Girlando Version 6.1")); 
+    Serial.println(F("Girlando GPIB-USB Controller modified version 6.1.1")); 
     return;
 }
 
@@ -528,10 +527,9 @@ int temp;
   eoi_only=false;
 }
 
-
 void clr_h() { 
   if ( sendGPIB_Acmd(SDC) )  { 
-    Serial.println(F("clr_h: sendGPIB_Acmd failed")); 
+    Serial.println(F("clr_h: sendGPIB_Acmd has failed!")); 
     return; 
   }  
 }
@@ -544,14 +542,15 @@ int temp;
     temp = strtol(param, &pend, 10);
     
     if (!temp) { 
-      if (verbose) Serial.println(F("Syntax error: ++info command does not accept any parameters.")); return;}
+      if (verbose) Serial.println(F("Syntax error: ++info command did not accept any parameters.")); return;}
     }
     Serial.println(F("Dwaine's Arduino GPIB USB Device")); 
     return; 
 }
+
 void llo_h() {
    if ( sendGPIB_Ucmd(LLO) )  { 
-    Serial.println(F("llo_h: sendGPIB_Ucmd failed")); 
+    Serial.println(F("llo_h: sendGPIB_Ucmd has failed!")); 
     return; 
   }  
 }
@@ -568,6 +567,7 @@ The (Universal) Device Clear (DCL) can be sent by any active controller and is r
     return; 
   }  
 }
+
 void loc_h() {
   if ( sendGPIB_Acmd(GTL) )  { 
     Serial.println(F("loc_h: sendGPIB_Acmd failed")); 
@@ -698,6 +698,7 @@ byte get_dab() {
   PORTC = PORTC | 0b00111111; // PORTC bits 5,4,3,2,1,0 input_pullup
   return ~((PIND<<2 & 0b11000000)+(PINC & 0b00111111));  
 }
+
 void set_dab(byte x) {
   /*
    pinMode(DIO1, OUTPUT); digitalWrite(DIO1, bitRead(~x, 0));
@@ -714,7 +715,6 @@ void set_dab(byte x) {
   PORTD = ( (PORTD&0b11001111) | (~x>>2 & 0b00110000) ) ;
   PORTC = ( (PORTC&0b11000000) | (~x    & 0b00111111) ) ;
 }
-
 
 // wait for "pin" to go at "level" or "timeout".
 // return values:  false on success, true on timeout.
@@ -757,7 +757,7 @@ boolean gpibWrite(byte data) {
 
   //wait until (LOW == NDAC)
   if (Wait_level_on_pin(HIGH,NDAC,htimeout))  { 
-    if (verbose) Serial.println(F("gpibWrite: timeout waiting NDAC")); 
+    if (verbose) Serial.println(F("gpibWrite: timeout waiting for NDAC!")); 
     return true; 
   }
 #ifdef DEEP_DEBUG_BUILD
@@ -768,7 +768,7 @@ boolean gpibWrite(byte data) {
 
   //wait until (HIGH == NRFD)
   if (Wait_level_on_pin(LOW,NRFD,htimeout))  { 
-    if (verbose) Serial.println(F("gpibWrite: timeout waiting NRFD")); 
+    if (verbose) Serial.println(F("gpibWrite: timeout waiting for NRFD!")); 
     return true; 
   }
 #ifdef DEEP_DEBUG_BUILD
@@ -783,7 +783,7 @@ boolean gpibWrite(byte data) {
 
   // wait until (HIGH == NDAC)
   if (Wait_level_on_pin(LOW,NDAC,htimeout))  { 
-    if (verbose) Serial.println(F("gpibWrite: timeout waiting NDAC")); 
+    if (verbose) Serial.println(F("gpibWrite: timeout waiting for NDAC!")); 
     digitalWrite(DAV, HIGH); 
     return true; 
   }
@@ -831,7 +831,7 @@ digitalWrite(NRFD, HIGH);
 
 // wait until (LOW == DAV) /Talker has finished setting data lines..
 if (Wait_level_on_pin(HIGH,DAV,htimeout))  { 
-  if (verbose) Serial.println(F("gpibRead: timeout waiting DAV")); 
+  if (verbose) Serial.println(F("gpibRead: timeout waiting for DAV!")); 
   return 2; 
 }
 #ifdef DEEP_DEBUG_BUILD
@@ -880,7 +880,7 @@ digitalWrite(NDAC, HIGH);
 
 // wait until (HIGH == DAV) 
 if (Wait_level_on_pin(LOW,DAV,htimeout))  { 
-  if (verbose) Serial.println(F("gpibRead: timeout waiting DAV")); 
+  if (verbose) Serial.println(F("gpibRead: timeout waiting for DAV!")); 
   return 2; 
 }
 #ifdef DEEP_DEBUG_BUILD
@@ -922,7 +922,7 @@ int i;
   digitalWrite(EOI, HIGH);
 
   if (set_comm_cntx(OUT))  { 
-      if (verbose) Serial.println(F("gpibTalk: set_comm-cntx failed.")); 
+      if (verbose) Serial.println(F("gpibTalk: set_comm-cntx has failed!")); 
       return; 
     } 
 
@@ -948,7 +948,7 @@ int i;
       break;
        
     default:                     // eos MUST be 0,1,2,or 3.
-      if (verbose) Serial.println(F("gpibTalk: ASSERT error: Invalid eos.")); //never reached..
+      if (verbose) Serial.println(F("gpibTalk: ASSERT error: Invalid eos!")); //never reached..
       return;
   };
 
@@ -956,7 +956,7 @@ int i;
   // write outbuf but the last char 
   while (0 != *(outbuf + 1)) { // char by char write, up to the last but one..
     if (gpibWrite((byte)*outbuf))  { 
-      if (verbose) Serial.println(F("gpibTalk: gpib write failed @4.")); 
+      if (verbose) Serial.println(F("gpibTalk: gpib write has failed @4!")); 
       return; 
     } 
     delayMicroseconds(20);
@@ -967,7 +967,7 @@ int i;
   if (eoi) digitalWrite(EOI, LOW);
 
   if (gpibWrite(*outbuf))  { 
-    if (verbose) Serial.println(F("gpibTalk: gpib write failed @5.")); 
+    if (verbose) Serial.println(F("gpibTalk: gpib write has failed @5!")); 
     return; 
   } 
   delayMicroseconds(20);
@@ -975,10 +975,11 @@ int i;
   digitalWrite(EOI, HIGH); // in  any case deassert EOI
     
   if ( sendGPIB_Ucmd(UNL) )  { 
-    if (verbose) Serial.println(F("gpibTalk: sendGPIB_Ucmd failed.")); 
+    if (verbose) Serial.println(F("gpibTalk: sendGPIB_Ucmd has failed!")); 
     return; 
   }  
 }
+
 /* 
  Listen role.
  Reads chars from GPIB an immediately send them to USB.
@@ -992,7 +993,7 @@ boolean gpibReceive() {
 #endif
 
   if (set_comm_cntx(IN))  { 
-      if (verbose) Serial.println(F("gpibReceive: set_comm-cntx failed.")); 
+      if (verbose) Serial.println(F("gpibReceive: set_comm-cntx has failed!")); 
       return true; 
     } 
 
@@ -1016,12 +1017,12 @@ boolean gpibReceive() {
       break;
 
     case 2:  // read timeout: usually device turned off or wrong addr
-      if (verbose) Serial.println(F("gpibReceive: Read timedout.")); 
+      if (verbose) Serial.println(F("gpibReceive: Read has timed out!")); 
       return true;
       break;
 
     default:
-      if (verbose) Serial.println(F("gpibReceive: ASSERT error: gpibRead returned unexpected value.")); 
+      if (verbose) Serial.println(F("gpibReceive: ASSERT error: gpibRead has returned an unexpected value!")); 
       return true; // never reached
       break;
     } 
@@ -1029,7 +1030,7 @@ boolean gpibReceive() {
   }   
   
   if ( sendGPIB_Ucmd(UNT) )  { // UNTalk the device
-    if (verbose) Serial.println(F("gpibReceive: sendGPIB_Ucmd failed.")); 
+    if (verbose) Serial.println(F("gpibReceive: sendGPIB_Ucmd has failed!")); 
     return true; 
     
   }  
@@ -1051,7 +1052,6 @@ void gpibIFC(void) {
   delayMicroseconds(20);
 }
 
-
 /*
 sends a Universal Multiline command to the GPIB BUS
 P.O.O.: assert ATN, gpibwrites the command, deassert ATN 
@@ -1064,7 +1064,7 @@ boolean sendGPIB_Ucmd(byte cmd) {
 
   // issues the command 
   if (gpibWrite(cmd))  { 
-    if (verbose) Serial.println(F("sendGPIB_Ucmd: gpib cmd write failed")); 
+    if (verbose) Serial.println(F("sendGPIB_Ucmd: gpib cmd write has failed!")); 
     return FAIL; 
   } 
   delayMicroseconds(10);
@@ -1075,7 +1075,6 @@ boolean sendGPIB_Ucmd(byte cmd) {
   
   return SUCCESS;
 }
-
 
 /*
 sends a Addressed command to the GPIB BUS
@@ -1089,19 +1088,19 @@ boolean sendGPIB_Acmd(byte cmd) {
 
   // send ADDRESS for device clear
   if (gpibWrite((byte)(0x20 + addr)))  { 
-    if (verbose) Serial.println(F("gpibSDC: gpib ADRRESS write failed")); 
+    if (verbose) Serial.println(F("gpibSDC: gpib ADRRESS write has failed!")); 
     return FAIL; 
   } 
   delayMicroseconds(10);
 
   if (gpibWrite(cmd))  { 
-    if (verbose) Serial.println(F("gpibSDC: gpib SDC (0x04) write failed")); 
+    if (verbose) Serial.println(F("gpibSDC: gpib SDC (0x04) write has failed!")); 
     return FAIL; 
   } 
   delayMicroseconds(10);
   
   if (gpibWrite(UNL))  { 
-    if (verbose) Serial.println(F("gpibSDC: gpib unlisten (UNL) write failed")); 
+    if (verbose) Serial.println(F("gpibSDC: gpib unlisten (UNL) write has failed!")); 
     return FAIL; 
   } 
   delayMicroseconds(10);
@@ -1143,14 +1142,14 @@ boolean set_comm_cntx(byte direction) {
 */  
   // issue talker address 
   if (gpibWrite((byte)0x40 + (direction ?  addr : MYADDR) ))  { 
-    if (verbose) Serial.println(F("set_comm_cntx: gpib write failed @1")); 
+    if (verbose) Serial.println(F("set_comm_cntx: gpib write has failed @1!")); 
     return FAIL; 
   }
   delayMicroseconds(20);
 
   // listener address 
   if (gpibWrite((byte)(0x20 + (direction ? MYADDR : addr) )))  { 
-    if (verbose) Serial.println(F("set_comm_cntx: gpib write failed @2")); 
+    if (verbose) Serial.println(F("set_comm_cntx: gpib write has failed @2!")); 
     return FAIL; 
   }
   delayMicroseconds(20);
