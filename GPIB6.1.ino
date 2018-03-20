@@ -3,10 +3,9 @@ Arduino USB to GPIB firmware by E. Girlando is licensed under a Creative Commons
 Permissions beyond the scope of this license may be available at emanuele_girlando@yahoo.com.
 */
 
-// #define DEBUG_BUILD
-// #define DEEP_DEBUG_BUILD 
+//#define DEBUG_BUILD
+//#define DEEP_DEBUG_BUILD 
 
-/* Fix compiler warnings - Jan 4, 2016 - Dwaine P. Garden
 
 /*
  Implements some of the CONTROLLER functions; CIC only;
@@ -45,6 +44,7 @@ Permissions beyond the scope of this license may be available at emanuele_girlan
 #define NDAC  9   /* GPIB 8  : Not Data Accepted  - Arduino PORTB bit 0 */
 #define IFC   8   /* GPIB 9  : Interface Clear    - Arduino PORTB bit 1 */
 #define ATN   7   /* GPIB 11 : Attention          - Arduino PORTD bit 7 */
+#define SRQ 2     /* GPIB 10 : Service Request - Arduino PORTD bit 2 */
 /* 
  NOTE for the entire code: 
  Remember GPIB logic: HIGH means not active, deasserted; LOW means active, asserted; 
@@ -58,16 +58,14 @@ GPIB BUS commands
 #define LLO 0x11
 #define UNL 0x3F
 #define UNT 0x5F
-#define SPE 0x18
+//#define SPE 0x18
 #define SPD 0x19
 #define PPU 0x15
+
 // Addressed commands
 #define SDC 0x04
 #define GTL 0x01
 #define GET 0x08
-
-
-
 
 #define SUCCESS false
 #define FAIL true
@@ -102,7 +100,7 @@ boolean itwascmd=false;   // flag to know if the last USB input line was a "++" 
 int htimeout = 200;       // Handshake timeout. Also known as read_tmo_ms. Its actual value has to be found by
                           // trial&error depending on the actual application.
 boolean cmode = CONTROLLER;     // controller mode (never changed at the moment.. only controller mode implemented)
-byte addr = 2;            // GPIB address of actual communication counterpart (tipically a device or instrument).
+byte addr = 1;            // GPIB address of actual communication counterpart (tipically a device or instrument).
 
 byte eos=1;               // end of string flag to control how messages to GPIB are terminated.
 boolean eoi=true;         // by default asserts EOI on last char written to GPIB
@@ -111,6 +109,9 @@ boolean eot_enable=false; // do we append a char to received string before sendi
 char eot_char = 0xA;      // if eot_enable this is the char in use.
 boolean automode = false; // read after write 
 boolean verbose=false;    // if set the controller expect a human interaction but loose compatibility; silent otherwise but with more compatibility.
+boolean srqmode = false;
+volatile int8_t srqflag = 0;
+
 /*
   end of Controller state variables
  */
@@ -134,12 +135,13 @@ void setup() {
   digitalWrite(NRFD, LOW);
   pinMode(IFC, OUTPUT); 
   digitalWrite(IFC, HIGH);
+  pinMode(SRQ, INPUT_PULLUP );
   (void) get_dab();  // just to set all data lines in a known not floating state..
 
   if (verbose) print_ver();
 
 #ifdef DEBUG_BUILD
-  Serial.println(F("Debug enable"));
+  Serial.println(F("Debug mode has been enable!"));
 #endif
 
 }
@@ -167,7 +169,7 @@ void flush_serial(void) {
 void loop() {
   
   flush_serial();                    // ensure nothing is pending just before prompting the user..
-  if (verbose) Serial.print("> ");   // humans like to be promted for input...
+  if (verbose) Serial.print("Dwaine Arduino GPIB-USB> ");   // humans like to be promted for input...
   
   getUSBline();          // gets the next USB input line and if it is a "++" command exec the handler.
   
@@ -216,6 +218,18 @@ void getUSBline() {
 #ifdef DEBUG_BUILD
         Serial.println(F("ESC!!!"));
 #endif
+          if (srqflag)
+{
+if (verbose)
+{
+Serial.print ("SRQ "); Serial.println (srqflag);
+}
+else
+{
+Serial.println ("SRQ");
+}
+srqflag = 0;
+}
           if (isesc) goto loadchar;     // escaped escape (!)
           else isesc = true;
           break;
@@ -243,7 +257,7 @@ void getUSBline() {
         loadchar:       // collect c in com, ensuring com does not overflow */
           if ( comp < come ) { *comp++ = c; } 
           else {     // buffer overflow; entire line discarded
-            Serial.print(F("USB buffer overflow: limit input size to ")); Serial.print(BUFFSIZE-1); Serial.println(" chars."); 
+            Serial.print(F("USB buffer overflow: Please limit input size to ")); Serial.print(BUFFSIZE-1); Serial.println(" chars."); 
             //flush_serial(); 
             *com = 0; comp = com; isesc=false;
             return;
@@ -272,6 +286,7 @@ static cmd_info cmds [] = {
   { "auto",        automode_h   },
   { "read",        read_h       },
   { "clr",         clr_h        },
+  { "info",        info_h       },
   { "trg",         trg_h        },
   { "llo",         llo_h        },
   { "loc",         loc_h        },
@@ -280,7 +295,9 @@ static cmd_info cmds [] = {
   { "eot_enable",  eot_enable_h },
   { "eot_char",    eot_char_h   },
   { "dcl",         dcl_h        },
-  { "ifc",         ifc_h        }
+  { "ifc",         ifc_h        },
+  { "srq",         srq_h        }, // jxl
+  { "srqmode",     srqmode_h    } // jxl
 }; 
 
 /*
@@ -311,7 +328,7 @@ char *param; // pointer to comman parameter(s)
   }
   
   if (cmdp == cmde && verbose) {
-    Serial.print(param); Serial.println(F(": unreconized command.")); 
+    Serial.print(param); Serial.println(F(": This is an unreconized command!")); 
   }
 
 *com=0; comp=com; //Done.
@@ -326,27 +343,80 @@ void addr_h() {
   char *param, *pend; 
   int temp;
 
-  if ( (param=strtok(NULL, " \t")) ) {  
+  if ( (param=strtok(0, " \t")) ) {  
     // Serial.print("param: "); Serial.println(param);
     temp = strtol(param, &pend, 10);
-    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<1 || temp > 30) { 
-        if (verbose) Serial.println(F("address out of range: valid address range is [1-30]."));return;} 
+        if (verbose) Serial.println(F("The address is out of range: A valid address range is [1-30]."));return;} 
     addr=temp; if (!verbose) return;
   }
   Serial.println(addr); 
+}
+
+void srq_h()
+{
+byte srq;
+
+if (LOW == digitalRead(SRQ))
+srq = 1;
+else
+srq = 0;
+
+Serial.println (srq, DEC);
+}
+void srq_handler ()
+{
+for (uint8_t i = 5; i > 0; i--)
+{
+if ((PIND & 0x04) == 0) srqflag += 1;
+}
+
+// there is a ~100ns glitch on the SRQ line during the databus transition - simultaneous switching noise ???
+if (srqflag < 2) srqflag = 0;
+}
+void srqmode_h()
+{
+char *param, *pend;
+int temp;
+
+if ( (param=strtok(NULL, " \t")) )
+{
+temp = strtol(param, &pend, 10);
+if (*pend != 0)
+{
+if (verbose) Serial.println(F("Syntax error!"));
+return;
+}
+if (temp < 0 || temp > 1)
+{
+if (verbose) Serial.println(F("srqmode: The valid range is [0|1]."));
+return;
+}
+srqmode = temp ? true : false;
+if (srqmode)
+{
+attachInterrupt (0, srq_handler, FALLING);
+}
+else
+{
+detachInterrupt (0);
+}
+if (!verbose) return;
+}
+Serial.println(srqmode);
 }
 
 void tmo_h() { 
   char *param, *pend; 
   int temp;
 
-  if ( (param=strtok(NULL, " \t")) ) {  
+  if ( (param=strtok(0, " \t")) ) {  
     // Serial.print("param: "); Serial.println(param);
     temp = strtol(param, &pend, 10);
-    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<100 || temp > 9999) { 
-        if (verbose) Serial.println(F("read_tmo_ms out of range: valid address range is [100-9999]."));return;}
+        if (verbose) Serial.println(F("read_tmo_ms out of range: The valid address range is [100-9999]."));return;}
     htimeout=temp; if (!verbose) return;
   }
   Serial.println(htimeout); 
@@ -355,12 +425,12 @@ void eos_h() {
   char *param, *pend; 
   int temp;
 
-  if ( (param=strtok(NULL, " \t")) ) {  
+  if ( (param=strtok(0, " \t")) ) {  
     // Serial.print("param: "); Serial.println(param);
     temp = strtol(param, &pend, 10);
-    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<0|| temp > 3) { 
-        if (verbose) Serial.println(F("eos out of range: valid address range is [0-3]."));return;}
+        if (verbose) Serial.println(F("eos out of range: The valid address range is [0-3]."));return;}
     eos=temp; if (!verbose) return;
   }
   Serial.println(eos); 
@@ -369,11 +439,11 @@ void eoi_h() {
   char *param, *pend; 
   int temp;
 
-  if ( (param=strtok(NULL, " \t")) ) {  
+  if ( (param=strtok(0, " \t")) ) {  
     temp = strtol(param, &pend, 10);
-    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<0|| temp > 1) { 
-        if (verbose) Serial.println(F("eoi: valid address range is [0|1]."));return;}
+        if (verbose) Serial.println(F("eoi: The valid address range is [0|1]."));return;}
     eoi = temp ? true : false;  if (!verbose) return;
   }
   Serial.println(eoi); 
@@ -382,11 +452,11 @@ void mode_h() {
   char *param, *pend; 
   int temp;
 
-  if ( (param=strtok(NULL, " \t")) ) {  
+  if ( (param=strtok(0, " \t")) ) {  
     temp = strtol(param, &pend, 10);
-    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<0|| temp > 1) { 
-        if (verbose) Serial.println(F("mode: valid address range is [0|1]."));return;}
+        if (verbose) Serial.println(F("mode: The valid address range is [0|1]."));return;}
     // cmode = temp ? CONTROLLER : DEVICE;  if (!verbose) return;
        cmode=CONTROLLER;  // only controller mode implemented here... 
   }
@@ -396,11 +466,11 @@ void eot_enable_h() {
   char *param, *pend; 
   int temp;
 
-  if ( (param=strtok(NULL, " \t")) ) {  
+  if ( (param=strtok(0, " \t")) ) {  
     temp = strtol(param, &pend, 10);
-    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<0|| temp > 1) { 
-        if (verbose) Serial.println(F("eoi: valid address range is [0|1]."));return;}
+        if (verbose) Serial.println(F("eoi: The valid address range is [0|1]."));return;}
     eot_enable = temp ? true : false;  if (!verbose) return;
   }
   Serial.println(eot_enable); 
@@ -409,11 +479,11 @@ void eot_char_h() {
   char *param, *pend; 
   int temp;
 
-  if ( (param=strtok(NULL, " \t")) ) {  
+  if ( (param=strtok(0, " \t")) ) {  
     temp = strtol(param, &pend, 10);
-    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error!")); return;}
     if (temp<0|| temp > 256) { 
-        if (verbose) Serial.println(F("eot_char: valid address range is [0-256]."));return;}
+        if (verbose) Serial.println(F("eot_char: The valid address range is [0-256]."));return;}
     eot_char = temp;  if (!verbose) return;
   }
   Serial.println((byte)eot_char); 
@@ -423,11 +493,11 @@ void automode_h() {
 char *param, *pend; 
 int temp;
 
-  if ( (param=strtok(NULL, " \t")) ) {  
+  if ( (param=strtok(0, " \t")) ) {  
     temp = strtol(param, &pend, 10);
-    if (*pend != 0) { if (verbose) Serial.println(F("Syntax error.")); return;}
+    if (*pend != 0) { if (verbose) Serial.print(F("Syntax error!")); return;}
     if (temp<0|| temp > 1) { 
-        if (verbose) Serial.println(F("automode: valid address range is [0|1]."));return;}
+        if (verbose) Serial.println(F("automode: The valid address range is [0|1]."));return;}
     automode = temp ? true : false;  if (!verbose) return;
     !automode ? 0 : Serial.println(F("WARNING: automode ON can generate \"addressed to talk but nothing to say\" errors in the devices \nor issue read command too soon."));
   }
@@ -435,13 +505,24 @@ int temp;
 }
 
 void print_ver() {
-  Serial.println(F("ARDUINO GPIB firmware by E. Girlando Version 6.1")); 
+char *param, *pend; 
+int temp;
+
+    if ( (param=strtok(0, " \t")) ) { 
+    temp = strtol(param, &pend, 10);
+    
+    if (!temp) { 
+      if (verbose) Serial.println(F("Syntax error: ++ver command does not accept any parameters.")); return;}
+    }
+    Serial.println(F("ARDUINO GPIB firmware by E. Girlando Version 6.1")); 
+    return;
 }
+
 void read_h() { 
 char *param, *pend; 
 int temp;
 
-  if ( (param=strtok(NULL, " \t")) ) 
+  if ( (param=strtok(0, " \t")) ) 
     if (0 == strncmp(param, "eoi", 3)) eoi_only=true;
   gpibReceive();
   eoi_only=false;
@@ -453,6 +534,20 @@ void clr_h() {
     Serial.println(F("clr_h: sendGPIB_Acmd failed")); 
     return; 
   }  
+}
+
+void info_h() { 
+char *param, *pend; 
+int temp;
+
+    if ( (param=strtok(0, " \t")) ) { 
+    temp = strtol(param, &pend, 10);
+    
+    if (!temp) { 
+      if (verbose) Serial.println(F("Syntax error: ++info command does not accept any parameters.")); return;}
+    }
+    Serial.println(F("Dwaine's Arduino GPIB USB Device")); 
+    return; 
 }
 void llo_h() {
    if ( sendGPIB_Ucmd(LLO) )  { 
@@ -501,7 +596,7 @@ if ( sendGPIB_Acmd(GET) )  {
 
 void verbose_h() { 
     verbose = !verbose;
-    Serial.print("verbose: ");
+    Serial.print("Verbose Mode: ");
     Serial.println(verbose ? "ON" : "OFF");
 }
 /*
@@ -587,7 +682,7 @@ Theory of the following bitwise operations:
  */
 byte get_dab() {
 /*
-  pinMode(DIO1, INPUT_PULLUP); bitWrite(x, 0, !digitalRead(DIO1));
+   pinMode(DIO1, INPUT_PULLUP); bitWrite(x, 0, !digitalRead(DIO1));
    pinMode(DIO2, INPUT_PULLUP); bitWrite(x, 1, !digitalRead(DIO2));
    pinMode(DIO3, INPUT_PULLUP); bitWrite(x, 2, !digitalRead(DIO3));
    pinMode(DIO4, INPUT_PULLUP); bitWrite(x, 3, !digitalRead(DIO4));
