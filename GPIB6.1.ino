@@ -44,7 +44,7 @@ Permissions beyond the scope of this license may be available at emanuele_girlan
 #define NDAC  9   /* GPIB 8  : Not Data Accepted  - Arduino PORTB bit 0 */
 #define IFC   8   /* GPIB 9  : Interface Clear    - Arduino PORTB bit 1 */
 #define ATN   7   /* GPIB 11 : Attention          - Arduino PORTD bit 7 */
-#define SRQ 2     /* GPIB 10 : Service Request - Arduino PORTD bit 2 */
+#define SRQ   2     /* GPIB 10 : Service Request - Arduino PORTD bit 2 */
 /* 
  NOTE for the entire code: 
  Remember GPIB logic: HIGH means not active, deasserted; LOW means active, asserted; 
@@ -278,9 +278,10 @@ struct cmd_info {
 
 static cmd_info cmds [] = { 
   { "addr",        addr_h   }, 
-  { "ver" ,        print_ver    },
-  { "verbose" ,    verbose_h    },
-  { "mode" ,       mode_h       },
+  { "ver",         print_ver    },
+  { "help",        help_h       },
+  { "verbose",     verbose_h    },
+  { "mode",        mode_h       },
   { "read_tmo_ms", tmo_h        },
   { "auto",        automode_h   },
   { "read",        read_h       },
@@ -329,11 +330,8 @@ char *param; // pointer to comman parameter(s)
   if (cmdp == cmde && verbose) {
     Serial.print(param); Serial.println(F(": This is an unreconized command!")); 
   }
-
 *com=0; comp=com; //Done.
-
 }
-
 
 /*
 command handlers
@@ -351,6 +349,89 @@ void addr_h() {
     addr=temp; if (!verbose) return;
   }
   Serial.println(addr); 
+}
+
+void help_h() { 
+  char *param, *pend; 
+int temp;
+
+    if ( (param=strtok(0, " \t")) ) { 
+    temp = strtol(param, &pend, 10);
+    
+    if (!temp) { 
+      if (verbose) Serial.println(F("Syntax error: ++help command does not accept parameters!")); return;}
+    }
+    Serial.println(F("Girlando GPIB-USB Help")); 
+    Serial.println(F("======================"));
+    Serial.println(F("Lines starting with ++ are assumed to be commands directed towards the controller and are parsed as such."));
+    Serial.println(F("Everything not starting with ++ is sent to the addressed instrument over the GPIB BUS."));
+    Serial.println(F(" "));
+    Serial.println(F("Commands:"));
+    Serial.println(F("++addr [address value]"));  
+    Serial.println(F("Fully compatible with the ++ de facto standard, but subaddressing is not implemented (SADs are syntactically accepted but ignored)."));  
+    Serial.println(F(" "));
+    Serial.println(F("++help"));  
+    Serial.println(F("Display help for the various USB GPIB Controller Commands"));  
+    Serial.println(F(" "));
+    Serial.println(F("++ver"));  
+    Serial.println(F("Displays the version number of the USB GPIB Controller firmware."));  
+    Serial.println(F(" "));
+    Serial.println(F("++verbose [numeric value 0:1]"));  
+    Serial.println(F("This command toggles the controller between verbose and silent modes. When in verbose mode the USB GPIB Controller assumes a human is working on the session"));  
+    Serial.println(F(" "));
+    Serial.println(F("++dcl"));  
+    Serial.println(F("Sends an unaddressed DCL (Universal Device Clear) command to the GPIB. It is a message to the instrument rather than to its interface."));   
+    Serial.println(F("So it is left to the instrument how to react on a DCL. Typically it generates a power on reset. See instrument documentation."));  
+    Serial.println(F(" "));
+    Serial.println(F("++mode"));
+    Serial.println(F("This command is syntactically fully compatible, but the only mode implemented is CONTROLLER. The cammand is provided for compatibility but it is inoperative."));
+    Serial.println(F(" "));
+    Serial.println(F("++auto [numeric value 0:1]"));
+    Serial.println(F("For this reason automode is blocked if you just send an empty string pressing CR or NL. Automode is also suppressed with ++ commands."));
+    Serial.println(F("With ++auto mode ON makes every string sent to GPIB instrument, the controller issues an implicit ++read command to the addressed instrument.")); 
+    Serial.println(F("This gives you the impression to have the device immediately reacts with a ++read value back automatically."));
+    Serial.println(F("Auto Mode is blocked if you just send an empty string pressing CR or NL. Auto Mode is also suppressed with ++ commands."));
+    Serial.println(F(" "));
+    Serial.println(F("++read"));
+    Serial.println(F("Fully compatible with the ++ de facto standard, but the ++read [char] command has not implemented into the USB GPIB firmware."));
+    Serial.println(F(" "));
+    Serial.println(F("++trg"));
+    Serial.println(F("Implemented for the addressed instrument only; it doesn't accept PADs or SADs paramenters."));
+    Serial.println(F(" "));
+    Serial.println(F("++sqr [numeric value 0:1]"));
+    Serial.println(F("Enables the USB GPIB controller to print 1 or 0 to the console everytime SRQ is active or not."));
+    Serial.println(F(" "));
+    Serial.println(F("++srqmode [numeric value 0:1]"));
+    Serial.println(F("Enables the USB GPIB controller to print SRQ to the console everytime SRQ goes active."));
+    Serial.println(F(" "));
+    Serial.println(F("++clr"));
+    Serial.println(F("Fully compatible with the ++ de facto standard."));
+    Serial.println(F(" "));
+    Serial.println(F("++eoi"));
+    Serial.println(F("Fully compatible with the ++ de facto standard."));
+    Serial.println(F(" "));
+    Serial.println(F("++eos"));
+    Serial.println(F("Fully compatible with the ++ de facto standard."));
+    Serial.println(F(" "));
+    Serial.println(F("++eot_enable"));
+    Serial.println(F("Fully compatible with the ++ de facto standard."));
+    Serial.println(F(" "));
+    Serial.println(F("++eot_char"));
+    Serial.println(F("Fully compatible with the ++ de facto standard."));
+    Serial.println(F(" "));
+    Serial.println(F("++ifc"));
+    Serial.println(F("Fully compatible with the ++ de facto standard."));
+    Serial.println(F(" "));
+    Serial.println(F("++llo"));
+    Serial.println(F("Fully compatible with the ++ de facto standard."));
+    Serial.println(F(" "));
+    Serial.println(F("++loc"));
+    Serial.println(F("Fully compatible with the ++ de facto standard."));
+    Serial.println(F(" "));
+    Serial.println(F("++rst, ++lon, ++savecfg, ++spoll, ++status"));
+    Serial.println(F("These commands have not been implemented into the USB GPIB Controller firmware!"));
+    Serial.println(F(" "));
+    return;
 }
 
 void srq_h()
@@ -420,6 +501,7 @@ void tmo_h() {
   }
   Serial.println(htimeout); 
 }
+
 void eos_h() { 
   char *param, *pend; 
   int temp;
@@ -434,6 +516,7 @@ void eos_h() {
   }
   Serial.println(eos); 
 }
+
 void eoi_h() { 
   char *param, *pend; 
   int temp;
@@ -447,6 +530,7 @@ void eoi_h() {
   }
   Serial.println(eoi); 
 }
+
 void mode_h() { 
   char *param, *pend; 
   int temp;
@@ -461,6 +545,7 @@ void mode_h() {
   }
   Serial.println(cmode); 
 }
+
 void eot_enable_h() { 
   char *param, *pend; 
   int temp;
@@ -474,6 +559,7 @@ void eot_enable_h() {
   }
   Serial.println(eot_enable); 
 }
+
 void eot_char_h() { 
   char *param, *pend; 
   int temp;
@@ -511,7 +597,7 @@ int temp;
     temp = strtol(param, &pend, 10);
     
     if (!temp) { 
-      if (verbose) Serial.println(F("Syntax error: ++ver command has not accepted any parameters!")); return;}
+      if (verbose) Serial.println(F("Syntax error: ++ver command does not accept parameters!")); return;}
     }
     Serial.println(F("Girlando GPIB-USB Controller modified version 6.1.1")); 
     return;
@@ -542,7 +628,7 @@ int temp;
     temp = strtol(param, &pend, 10);
     
     if (!temp) { 
-      if (verbose) Serial.println(F("Syntax error: ++info command did not accept any parameters.")); return;}
+      if (verbose) Serial.println(F("Syntax error: ++info command does not accept parameters!")); return;}
     }
     Serial.println(F("Dwaine's Arduino GPIB USB Device")); 
     return; 
